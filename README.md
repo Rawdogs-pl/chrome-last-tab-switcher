@@ -1,6 +1,6 @@
 # Instalacja
 
-Pobierz to repozytorium
+Pobierz to repozytorium - https://github.com/Rawdogs-pl/chrome-last-tab-switcher/archive/refs/heads/main.zip
 
 Wejdź w Chrome pod adres: `chrome://extensions/`
 
