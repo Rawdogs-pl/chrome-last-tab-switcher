@@ -10,8 +10,8 @@
   "commands": {
     "switch-last-tab": {
       "suggested_key": {
-        "default": "Ctrl+Q",
-        "mac": "Command+Q"
+        "default": "Ctrl+E",
+        "mac": "Command+E"
       },
       "description": "Przełącz na ostatnio aktywną kartę"
     }
