@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Last Tab Switcher",
+  "description": "Przełączaj się między ostatnio używanymi kartami.",
+  "version": "1.1",
+  "permissions": ["tabs"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "switch-last-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Q",
+        "mac": "Command+Q"
+      },
+      "description": "Przełącz na ostatnio aktywną kartę"
+    }
+  },
+  "action": {
+    "default_title": "Last Tab Switcher"
+  }
+}
