@@ -1,21 +1,134 @@
-let lastTabId = null;
-let currentTabId = null;
+// Klucze do przechowywania stanu w storage
+const STORAGE_KEYS = {
+    lastTabId: 'lastTabId',
+    currentTabId: 'currentTabId'
+};
+
+// Funkcja pomocnicza do pobierania stanu z storage
+async function getTabState() {
+    try {
+        const result = await chrome.storage.session.get([STORAGE_KEYS.lastTabId, STORAGE_KEYS.currentTabId]);
+        return {
+            lastTabId: result[STORAGE_KEYS.lastTabId] || null,
+            currentTabId: result[STORAGE_KEYS.currentTabId] || null
+        };
+    } catch (error) {
+        console.error('Error getting tab state:', error);
+        return { lastTabId: null, currentTabId: null };
+    }
+}
+
+// Funkcja pomocnicza do zapisywania stanu w storage
+async function saveTabState(lastTabId, currentTabId) {
+    try {
+        await chrome.storage.session.set({
+            [STORAGE_KEYS.lastTabId]: lastTabId,
+            [STORAGE_KEYS.currentTabId]: currentTabId
+        });
+    } catch (error) {
+        console.error('Error saving tab state:', error);
+    }
+}
+
+// Funkcja pomocnicza do sprawdzania czy tab nadal istnieje
+async function isTabValid(tabId) {
+    if (!tabId) return false;
+    try {
+        await chrome.tabs.get(tabId);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+// Inicjalizacja przy starcie service worker
+async function initializeExtension() {
+    try {
+        // Pobierz aktualnie aktywną kartę
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length > 0) {
+            const state = await getTabState();
+            // Jeśli mamy zapisany currentTabId, ale jest inny niż aktualny, zapisz go jako lastTabId
+            if (state.currentTabId && state.currentTabId !== tabs[0].id) {
+                // Sprawdź czy poprzednia karta nadal istnieje
+                const isValid = await isTabValid(state.currentTabId);
+                if (isValid) {
+                    await saveTabState(state.currentTabId, tabs[0].id);
+                } else {
+                    await saveTabState(null, tabs[0].id);
+                }
+            } else {
+                await saveTabState(state.lastTabId, tabs[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing extension:', error);
+    }
+}
 
 // Zapamiętuj aktywne karty
-chrome.tabs.onActivated.addListener(activeInfo => {
-    if (currentTabId && activeInfo.tabId !== currentTabId) {
-        lastTabId = currentTabId;
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+        const state = await getTabState();
+        
+        // Jeśli zmieniliśmy kartę, zapisz poprzednią jako ostatnią
+        if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
+            await saveTabState(state.currentTabId, activeInfo.tabId);
+        } else {
+            await saveTabState(state.lastTabId, activeInfo.tabId);
+        }
+    } catch (error) {
+        console.error('Error handling tab activation:', error);
     }
-    currentTabId = activeInfo.tabId;
+});
+
+// Obsługa usuwania kart
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+    try {
+        const state = await getTabState();
+        
+        // Jeśli usunięto ostatnią zapamiętaną kartę, wyczyść ją
+        if (state.lastTabId === tabId) {
+            await saveTabState(null, state.currentTabId);
+        }
+        
+        // Jeśli usunięto aktualną kartę, znajdź nową aktywną
+        if (state.currentTabId === tabId) {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+                await saveTabState(state.lastTabId, tabs[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('Error handling tab removal:', error);
+    }
 });
 
 // Reakcja na skrót klawiszowy
-chrome.commands.onCommand.addListener(command => {
-    if (command === "switch-last-tab" && lastTabId !== null) {
-        chrome.tabs.get(lastTabId, tab => {
-            if (chrome.runtime.lastError || !tab) return;
-            chrome.tabs.update(lastTabId, { active: true });
-        });
+chrome.commands.onCommand.addListener(async (command) => {
+    if (command === "switch-last-tab") {
+        try {
+            const state = await getTabState();
+            
+            if (!state.lastTabId) {
+                console.log('No last tab ID available');
+                return;
+            }
+            
+            // Sprawdź czy ostatnia karta nadal istnieje
+            const isValid = await isTabValid(state.lastTabId);
+            if (!isValid) {
+                console.log('Last tab no longer exists, clearing from storage');
+                await saveTabState(null, state.currentTabId);
+                return;
+            }
+            
+            // Przełącz na ostatnią kartę
+            await chrome.tabs.update(state.lastTabId, { active: true });
+            
+        } catch (error) {
+            console.error('Error switching to last tab:', error);
+        }
     }
 });
 
@@ -47,4 +160,10 @@ chrome.runtime.onInstalled.addListener(details => {
             url: "data:text/html;charset=utf-8," + encodeURIComponent(instructionHtml)
         });
     }
+    
+    // Zainicjalizuj rozszerzenie po instalacji lub aktualizacji
+    initializeExtension();
 });
+
+// Zainicjalizuj rozszerzenie przy starcie service worker
+initializeExtension();
