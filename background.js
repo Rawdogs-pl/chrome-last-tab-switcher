@@ -18,7 +18,7 @@ async function getTabState() {
     }
 }
 
-// Funkcja pomocnicza do zapisywania stanu w storage
+// Helper function to save state to storage
 async function saveTabState(lastTabId, currentTabId) {
     try {
         await chrome.storage.session.set({
