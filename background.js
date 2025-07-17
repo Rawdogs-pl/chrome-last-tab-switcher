@@ -30,7 +30,7 @@ async function saveTabState(lastTabId, currentTabId) {
     }
 }
 
-// Funkcja pomocnicza do sprawdzania czy tab nadal istnieje
+// Helper function to check if a tab still exists
 async function isTabValid(tabId) {
     if (!tabId) return false;
     try {
