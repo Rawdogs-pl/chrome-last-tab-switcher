@@ -104,7 +104,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     }
 });
 
-// Reakcja na skrót klawiszowy
+// Reaction to keyboard shortcut
 chrome.commands.onCommand.addListener(async (command) => {
     if (command === "switch-last-tab") {
         try {
