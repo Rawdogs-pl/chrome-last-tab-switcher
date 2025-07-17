@@ -48,7 +48,7 @@ async function initializeExtension() {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs.length > 0) {
             const state = await getTabState();
-            // Jeśli mamy zapisany currentTabId, ale jest inny niż aktualny, zapisz go jako lastTabId
+            // If we have saved currentTabId, but it's different from actual, save it as lastTabId
             if (state.currentTabId && state.currentTabId !== tabs[0].id) {
                 // Sprawdź czy poprzednia karta nadal istnieje
                 const isValid = await isTabValid(state.currentTabId);
