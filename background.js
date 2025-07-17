@@ -50,7 +50,7 @@ async function initializeExtension() {
             const state = await getTabState();
             // If we have saved currentTabId, but it's different from actual, save it as lastTabId
             if (state.currentTabId && state.currentTabId !== tabs[0].id) {
-                // Sprawdź czy poprzednia karta nadal istnieje
+                // Check if the previous tab still exists
                 const isValid = await isTabValid(state.currentTabId);
                 if (isValid) {
                     await saveTabState(state.currentTabId, tabs[0].id);
