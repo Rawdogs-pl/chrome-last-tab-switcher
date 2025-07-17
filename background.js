@@ -82,7 +82,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 });
 
-// Obsługa usuwania kart
+// Handle tab removal
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
