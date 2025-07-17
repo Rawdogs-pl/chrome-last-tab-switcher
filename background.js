@@ -66,7 +66,7 @@ async function initializeExtension() {
     }
 }
 
-// Zapamiętuj aktywne karty
+// Remember active tabs
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     try {
         const state = await getTabState();
