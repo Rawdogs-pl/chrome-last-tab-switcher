@@ -92,7 +92,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
             await saveTabState(null, state.currentTabId);
         }
         
-        // Jeśli usunięto aktualną kartę, znajdź nową aktywną
+        // If current tab was removed, find new active one
         if (state.currentTabId === tabId) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs.length > 0) {
