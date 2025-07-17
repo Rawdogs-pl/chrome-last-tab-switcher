@@ -44,7 +44,7 @@ async function isTabValid(tabId) {
 // Initialization at service worker startup
 async function initializeExtension() {
     try {
-        // Pobierz aktualnie aktywną kartę
+        // Get currently active tab
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs.length > 0) {
             const state = await getTabState();
