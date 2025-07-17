@@ -41,7 +41,7 @@ async function isTabValid(tabId) {
     }
 }
 
-// Inicjalizacja przy starcie service worker
+// Initialization at service worker startup
 async function initializeExtension() {
     try {
         // Pobierz aktualnie aktywną kartę
