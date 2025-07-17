@@ -1,10 +1,10 @@
-// Klucze do przechowywania stanu w storage
+// Keys for storing state in storage
 const STORAGE_KEYS = {
     lastTabId: 'lastTabId',
     currentTabId: 'currentTabId'
 };
 
-// Funkcja pomocnicza do pobierania stanu z storage
+// Helper function to retrieve state from storage
 async function getTabState() {
     try {
         const result = await chrome.storage.session.get([STORAGE_KEYS.lastTabId, STORAGE_KEYS.currentTabId]);
