@@ -161,9 +161,9 @@ chrome.runtime.onInstalled.addListener(details => {
         });
     }
     
-    // Zainicjalizuj rozszerzenie po instalacji lub aktualizacji
+    // Initialize the extension after installation or update
     initializeExtension();
 });
 
-// Zainicjalizuj rozszerzenie przy starcie service worker
+// Initialize the extension at service worker startup
 initializeExtension();
