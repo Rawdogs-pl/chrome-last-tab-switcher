@@ -123,7 +123,7 @@ chrome.commands.onCommand.addListener(async (command) => {
                 return;
             }
             
-            // Przełącz na ostatnią kartę
+            // Switch to last tab
             await chrome.tabs.update(state.lastTabId, { active: true });
             
         } catch (error) {
