@@ -115,7 +115,7 @@ chrome.commands.onCommand.addListener(async (command) => {
                 return;
             }
             
-            // Sprawdź czy ostatnia karta nadal istnieje
+            // Check if last tab still exists
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
                 console.log('Last tab no longer exists, clearing from storage');
