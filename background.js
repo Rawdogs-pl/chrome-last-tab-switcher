@@ -87,7 +87,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
         
-        // Jeśli usunięto ostatnią zapamiętaną kartę, wyczyść ją
+        // If the last remembered tab was removed, clear it
         if (state.lastTabId === tabId) {
             await saveTabState(null, state.currentTabId);
         }
