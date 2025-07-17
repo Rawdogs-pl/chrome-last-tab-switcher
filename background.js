@@ -71,7 +71,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     try {
         const state = await getTabState();
         
-        // Jeśli zmieniliśmy kartę, zapisz poprzednią jako ostatnią
+        // If we changed tab, save previous as last
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
             await saveTabState(state.currentTabId, activeInfo.tabId);
         } else {
