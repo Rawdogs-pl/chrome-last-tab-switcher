@@ -1,21 +1,134 @@
-let lastTabId = null;
-let currentTabId = null;
+// Keys for storing state in storage
+const STORAGE_KEYS = {
+    lastTabId: 'lastTabId',
+    currentTabId: 'currentTabId'
+};
 
-// Zapamiętuj aktywne karty
-chrome.tabs.onActivated.addListener(activeInfo => {
-    if (currentTabId && activeInfo.tabId !== currentTabId) {
-        lastTabId = currentTabId;
+// Helper function to retrieve state from storage
+async function getTabState() {
+    try {
+        const result = await chrome.storage.session.get([STORAGE_KEYS.lastTabId, STORAGE_KEYS.currentTabId]);
+        return {
+            lastTabId: result[STORAGE_KEYS.lastTabId] || null,
+            currentTabId: result[STORAGE_KEYS.currentTabId] || null
+        };
+    } catch (error) {
+        console.error('Error getting tab state:', error);
+        return { lastTabId: null, currentTabId: null };
     }
-    currentTabId = activeInfo.tabId;
+}
+
+// Helper function to save state to storage
+async function saveTabState(lastTabId, currentTabId) {
+    try {
+        await chrome.storage.session.set({
+            [STORAGE_KEYS.lastTabId]: lastTabId,
+            [STORAGE_KEYS.currentTabId]: currentTabId
+        });
+    } catch (error) {
+        console.error('Error saving tab state:', error);
+    }
+}
+
+// Helper function to check if a tab still exists
+async function isTabValid(tabId) {
+    if (!tabId) return false;
+    try {
+        await chrome.tabs.get(tabId);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+// Initialization at service worker startup
+async function initializeExtension() {
+    try {
+        // Get currently active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length > 0) {
+            const state = await getTabState();
+            // If we have saved currentTabId, but it's different from actual, save it as lastTabId
+            if (state.currentTabId && state.currentTabId !== tabs[0].id) {
+                // Check if the previous tab still exists
+                const isValid = await isTabValid(state.currentTabId);
+                if (isValid) {
+                    await saveTabState(state.currentTabId, tabs[0].id);
+                } else {
+                    await saveTabState(null, tabs[0].id);
+                }
+            } else {
+                await saveTabState(state.lastTabId, tabs[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing extension:', error);
+    }
+}
+
+// Remember active tabs
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+        const state = await getTabState();
+        
+        // If we changed tab, save previous as last
+        if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
+            await saveTabState(state.currentTabId, activeInfo.tabId);
+        } else {
+            await saveTabState(state.lastTabId, activeInfo.tabId);
+        }
+    } catch (error) {
+        console.error('Error handling tab activation:', error);
+    }
 });
 
-// Reakcja na skrót klawiszowy
-chrome.commands.onCommand.addListener(command => {
-    if (command === "switch-last-tab" && lastTabId !== null) {
-        chrome.tabs.get(lastTabId, tab => {
-            if (chrome.runtime.lastError || !tab) return;
-            chrome.tabs.update(lastTabId, { active: true });
-        });
+// Handle tab removal
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+    try {
+        const state = await getTabState();
+        
+        // If the last remembered tab was removed, clear it
+        if (state.lastTabId === tabId) {
+            await saveTabState(null, state.currentTabId);
+        }
+        
+        // If current tab was removed, find new active one
+        if (state.currentTabId === tabId) {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+                await saveTabState(state.lastTabId, tabs[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('Error handling tab removal:', error);
+    }
+});
+
+// Reaction to keyboard shortcut
+chrome.commands.onCommand.addListener(async (command) => {
+    if (command === "switch-last-tab") {
+        try {
+            const state = await getTabState();
+            
+            if (!state.lastTabId) {
+                console.log('No last tab ID available');
+                return;
+            }
+            
+            // Check if last tab still exists
+            const isValid = await isTabValid(state.lastTabId);
+            if (!isValid) {
+                console.log('Last tab no longer exists, clearing from storage');
+                await saveTabState(null, state.currentTabId);
+                return;
+            }
+            
+            // Switch to last tab
+            await chrome.tabs.update(state.lastTabId, { active: true });
+            
+        } catch (error) {
+            console.error('Error switching to last tab:', error);
+        }
     }
 });
 
@@ -47,4 +160,10 @@ chrome.runtime.onInstalled.addListener(details => {
             url: "data:text/html;charset=utf-8," + encodeURIComponent(instructionHtml)
         });
     }
+    
+    // Initialize the extension after installation or update
+    initializeExtension();
 });
+
+// Initialize the extension at service worker startup
+initializeExtension();
