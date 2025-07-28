@@ -5,4 +5,4 @@
 3. Włącz tryb dewelopera (switch w prawym górnym rogu strony)
 4. Kliknij „Załaduj rozpakowane” (button w lewym górnym rogu strony)
 5. Wskaż z dysku wypakowany folder niniejszego repozytorium (z punktu nr 1)
-6. Wtyczka zostanie zainstalowana i otwarta zostanie instrukcja prostej konfiguracji odpowiadającego Ci skrótu klawiszowego.
+6. Wtyczka zostanie zainstalowana a na ekranie zobaczysz prostą instrukcję konfiguracji odpowiadającego Ci skrótu klawiszowego.
