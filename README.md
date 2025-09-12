@@ -1,9 +1,8 @@
-Chrome Last Tab Switcher to prosta, ale niezwykle wygodna wtyczka, która pozwala błyskawicznie wrócić do poprzednio przeglądanej karty za pomocą jednego skrótu klawiszowego.
+Chrome Last Tab Switcher to prosta, ale niezwykle praktyczna wtyczka, która pozwala w mgnieniu oka wrócić do poprzednio przeglądanej karty za pomocą jednego skrótu klawiszowego.
 
-Szybkie przełączanie – jednym kliknięciem klawiszy skaczesz między obecną a ostatnio używaną kartą.
-Pełna dowolność – sam decydujesz, jaki skrót klawiszowy będzie dla Ciebie najwygodniejszy (domyślnie: Ctrl + E).
+Zaraz po instalacji wybierasz kombinację klawiszy, która najbardziej Ci odpowiada (domyślnie: Ctrl + E).
 
-Dzięki temu przeglądanie w trybie „milion otwartych kart” przestaje być udręką — koniec z wiecznym szukaniem tej jednej, poprzedniej karty 😉
+Od teraz nawet przy „milionie otwartych kart” nie musisz już desperacko szukać tej jednej właściwej — wystarczy szybki skrót i jesteś z powrotem tam, gdzie trzeba 😉
 
 # Instalacja
 
