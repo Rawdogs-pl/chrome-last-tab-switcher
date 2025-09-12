@@ -1,3 +1,9 @@
+Wtyczka do Chrome’a, która pozwala skrótem klawiszowym wrócić do poprzednio przeglądanej karty. 
+
+- Skrót klawiaturowy, który przełącza pomiędzy bieżącą kartą a kartą, którą było się używało tuż wcześniej.
+
+- Ustawienia pozwalają określić skrót, którego chcesz używać (domyślnie ctrl + E).
+
 # Instalacja
 
 1. Pobierz wtyczkę (https://github.com/Rawdogs-pl/chrome-last-tab-switcher/archive/refs/heads/main.zip) i wypakuj ją po pobraniu (archiwum zip).
