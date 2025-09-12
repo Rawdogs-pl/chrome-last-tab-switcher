@@ -1,6 +1,8 @@
+# Chrome Last tab switcher
+
 Wracaj do ostatnio używanej karty jednym skrótem. Wybierz własną kombinację klawiszy (domyślnie Ctrl + E) i poruszaj się między kartami błyskawicznie — koniec z szukaniem tej jednej poprzedniej strony.
 
-# Instalacja
+## Instalacja
 
 1. Pobierz wtyczkę (https://github.com/Rawdogs-pl/chrome-last-tab-switcher/archive/refs/heads/main.zip) i wypakuj ją po pobraniu (archiwum zip).
 2. Wejdź w Chrome pod adres: `chrome://extensions/`
