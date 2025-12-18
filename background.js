@@ -1,30 +1,46 @@
 // Keys for storing state in storage
 const STORAGE_KEYS = {
     lastTabId: 'lastTabId',
-    currentTabId: 'currentTabId'
+    currentTabId: 'currentTabId',
+    lastTabScrollPosition: 'lastTabScrollPosition'
 };
 
 // Helper function to retrieve state from storage
 async function getTabState() {
     try {
-        const result = await chrome.storage.session.get([STORAGE_KEYS.lastTabId, STORAGE_KEYS.currentTabId]);
+        const result = await chrome.storage.session.get([
+            STORAGE_KEYS.lastTabId,
+            STORAGE_KEYS.currentTabId,
+            STORAGE_KEYS.lastTabScrollPosition
+        ]);
         return {
             lastTabId: result[STORAGE_KEYS.lastTabId] || null,
-            currentTabId: result[STORAGE_KEYS.currentTabId] || null
+            currentTabId: result[STORAGE_KEYS.currentTabId] || null,
+            lastTabScrollPosition: result[STORAGE_KEYS.lastTabScrollPosition] || null
         };
     } catch (error) {
         console.error('Error getting tab state:', error);
-        return { lastTabId: null, currentTabId: null };
+        return { lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
     }
 }
 
 // Helper function to save state to storage
-async function saveTabState(lastTabId, currentTabId) {
+async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = null) {
     try {
-        await chrome.storage.session.set({
+        const data = {
             [STORAGE_KEYS.lastTabId]: lastTabId,
             [STORAGE_KEYS.currentTabId]: currentTabId
-        });
+        };
+
+        // Only update scroll position if explicitly provided and valid
+        if (lastTabScrollPosition !== null &&
+            typeof lastTabScrollPosition === 'object' &&
+            typeof lastTabScrollPosition.x === 'number' &&
+            typeof lastTabScrollPosition.y === 'number') {
+            data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
+        }
+
+        await chrome.storage.session.set(data);
     } catch (error) {
         console.error('Error saving tab state:', error);
     }
@@ -37,6 +53,54 @@ async function isTabValid(tabId) {
         await chrome.tabs.get(tabId);
         return true;
     } catch (error) {
+        return false;
+    }
+}
+
+// Helper function to check if URL is a valid web page that supports content scripts
+function isValidWebPageUrl(url) {
+    if (!url) return false;
+    return !url.startsWith('chrome://') &&
+           !url.startsWith('chrome-extension://') &&
+           !url.startsWith('about:') &&
+           !url.startsWith('data:') &&
+           !url.startsWith('javascript:') &&
+           !url.startsWith('vbscript:') &&
+           !url.startsWith('file://');
+}
+
+// Helper function to get scroll position from a tab
+async function getScrollPositionFromTab(tabId) {
+    try {
+        // Check if tab exists and is a valid web page
+        const tab = await chrome.tabs.get(tabId);
+        if (!isValidWebPageUrl(tab.url)) {
+            return null;
+        }
+
+        const response = await chrome.tabs.sendMessage(tabId, { action: 'getScrollPosition' });
+        return response;
+    } catch (error) {
+        // Content script might not be injected yet or tab doesn't support it
+        console.error('Error getting scroll position from tab:', error);
+        return null;
+    }
+}
+
+// Helper function to set scroll position in a tab
+async function setScrollPositionInTab(tabId, position) {
+    try {
+        // Check if tab exists and is a valid web page
+        const tab = await chrome.tabs.get(tabId);
+        if (!isValidWebPageUrl(tab.url)) {
+            return false;
+        }
+
+        await chrome.tabs.sendMessage(tabId, { action: 'setScrollPosition', position: position });
+        return true;
+    } catch (error) {
+        // Content script might not be injected yet or tab doesn't support it
+        console.error('Error setting scroll position in tab:', error);
         return false;
     }
 }
@@ -70,10 +134,12 @@ async function initializeExtension() {
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     try {
         const state = await getTabState();
-        
+
         // If we changed tab, save previous as last
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
-            await saveTabState(state.currentTabId, activeInfo.tabId);
+            // Try to get scroll position from the tab we're leaving
+            const scrollPosition = await getScrollPositionFromTab(state.currentTabId);
+            await saveTabState(state.currentTabId, activeInfo.tabId, scrollPosition);
         } else {
             await saveTabState(state.lastTabId, activeInfo.tabId);
         }
@@ -86,12 +152,12 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
-        
+
         // If the last remembered tab was removed, clear it
         if (state.lastTabId === tabId) {
             await saveTabState(null, state.currentTabId);
         }
-        
+
         // If current tab was removed, find new active one
         if (state.currentTabId === tabId) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -109,12 +175,12 @@ chrome.commands.onCommand.addListener(async (command) => {
     if (command === "switch-last-tab") {
         try {
             const state = await getTabState();
-            
+
             if (!state.lastTabId) {
                 console.log('No last tab ID available');
                 return;
             }
-            
+
             // Check if last tab still exists
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
@@ -122,12 +188,39 @@ chrome.commands.onCommand.addListener(async (command) => {
                 await saveTabState(null, state.currentTabId);
                 return;
             }
-            
+
             // Switch to last tab
             await chrome.tabs.update(state.lastTabId, { active: true });
-            
+
         } catch (error) {
             console.error('Error switching to last tab:', error);
+        }
+    } else if (command === "sync-scroll-position") {
+        try {
+            const state = await getTabState();
+
+            if (!state.lastTabScrollPosition) {
+                console.log('No scroll position available from last tab');
+                return;
+            }
+
+            // Get current active tab
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length === 0) {
+                console.log('No active tab found');
+                return;
+            }
+
+            // Set scroll position in current tab to match last tab's scroll position
+            const success = await setScrollPositionInTab(tabs[0].id, state.lastTabScrollPosition);
+            if (success) {
+                console.log('Scroll position synced successfully');
+            } else {
+                console.log('Failed to sync scroll position');
+            }
+
+        } catch (error) {
+            console.error('Error syncing scroll position:', error);
         }
     }
 });
@@ -150,7 +243,13 @@ chrome.runtime.onInstalled.addListener(details => {
       </head>
       <body>
         <h2>🎉 Rozszerzenie „Last Tab Switcher” zostało zainstalowane!</h2>
-        <p>✅ Rekomendowany skrót to: <strong>Ctrl + E</strong> (Windows) lub <strong>⌘ Cmd + E</strong> (Mac) - musisz go ustawić na stronie <code>chrome://extensions/shortcuts</code> (skopiuj ten link i wklej w pasek adresu przeglądarki).</p>
+        <p><strong>⚠️ WAŻNE:</strong> Musisz ustawić skróty klawiszowe ręcznie!</p>
+        <p>Przejdź na stronę <code>chrome://extensions/shortcuts</code> (skopiuj i wklej w pasek adresu) i ustaw:</p>
+        <ul>
+          <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
+          <li><strong>Ctrl + Shift + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
+        </ul>
+        <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
         <p>Dziękujemy za korzystanie!</p>
       </body>
       </html>
@@ -160,7 +259,7 @@ chrome.runtime.onInstalled.addListener(details => {
             url: "data:text/html;charset=utf-8," + encodeURIComponent(instructionHtml)
         });
     }
-    
+
     // Initialize the extension after installation or update
     initializeExtension();
 });

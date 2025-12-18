@@ -2,6 +2,11 @@
 
 Wracaj do ostatnio używanej karty jednym skrótem. Wybierz własną kombinację klawiszy (domyślnie Ctrl + E) i poruszaj się między kartami błyskawicznie — koniec z szukaniem tej jednej poprzedniej strony.
 
+## Funkcje
+
+- **Przełączanie kart** (Ctrl + E): Szybkie przełączanie na ostatnio używaną kartę
+- **Synchronizacja pozycji scrolla** (Ctrl + Shift + E): Przewija bieżącą stronę do tej samej pozycji scrolla, którą miałeś na ostatniej karcie
+
 ## Instalacja
 
 1. Pobierz wtyczkę (https://github.com/Rawdogs-pl/chrome-last-tab-switcher/archive/refs/heads/main.zip) i wypakuj ją po pobraniu (archiwum zip).
@@ -9,4 +14,7 @@ Wracaj do ostatnio używanej karty jednym skrótem. Wybierz własną kombinację
 3. Włącz tryb dewelopera (switch w prawym górnym rogu strony)
 4. Kliknij „Załaduj rozpakowane” (button w lewym górnym rogu strony)
 5. Wskaż z dysku wypakowany folder niniejszego repozytorium (z punktu nr 1)
-6. Wtyczka zostanie zainstalowana a na ekranie zobaczysz prostą instrukcję konfiguracji odpowiadającego Ci skrótu klawiszowego.
+6. **WAŻNE:** Przejdź na stronę `chrome://extensions/shortcuts` i ustaw skróty klawiszowe:
+   - **Ctrl + E** (lub ⌘ Cmd + E na Mac) - przełącz na ostatnio aktywną kartę
+   - **Ctrl + Shift + E** (lub ⌘ Cmd + Shift + E na Mac) - zescrolluj do pozycji z ostatniej karty
+   - Możesz wybrać inne kombinacje klawiszy, jeśli sugerowane są zajęte
