@@ -4,15 +4,27 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getScrollPosition') {
         // Get current scroll position
-        const scrollPosition = {
-            x: window.scrollX,
-            y: window.scrollY
-        };
-        sendResponse(scrollPosition);
+        // Wait for document to be loaded if necessary
+        if (document.readyState === 'loading') {
+            sendResponse({ x: 0, y: 0 });
+        } else {
+            const scrollPosition = {
+                x: window.scrollX,
+                y: window.scrollY
+            };
+            sendResponse(scrollPosition);
+        }
     } else if (message.action === 'setScrollPosition') {
         // Set scroll position
         if (message.position) {
-            window.scrollTo(message.position.x, message.position.y);
+            // Wait for document to be ready before scrolling
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    window.scrollTo(message.position.x, message.position.y);
+                });
+            } else {
+                window.scrollTo(message.position.x, message.position.y);
+            }
             sendResponse({ success: true });
         } else {
             sendResponse({ success: false, error: 'No position provided' });

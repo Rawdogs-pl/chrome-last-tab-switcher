@@ -57,9 +57,16 @@ async function isTabValid(tabId) {
 // Helper function to get scroll position from a tab
 async function getScrollPositionFromTab(tabId) {
     try {
+        // Check if tab exists and is a valid web page
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+            return null;
+        }
+        
         const response = await chrome.tabs.sendMessage(tabId, { action: 'getScrollPosition' });
         return response;
     } catch (error) {
+        // Content script might not be injected yet or tab doesn't support it
         console.error('Error getting scroll position from tab:', error);
         return null;
     }
@@ -68,9 +75,16 @@ async function getScrollPositionFromTab(tabId) {
 // Helper function to set scroll position in a tab
 async function setScrollPositionInTab(tabId, position) {
     try {
+        // Check if tab exists and is a valid web page
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+            return false;
+        }
+        
         await chrome.tabs.sendMessage(tabId, { action: 'setScrollPosition', position: position });
         return true;
     } catch (error) {
+        // Content script might not be injected yet or tab doesn't support it
         console.error('Error setting scroll position in tab:', error);
         return false;
     }
@@ -214,11 +228,13 @@ chrome.runtime.onInstalled.addListener(details => {
       </head>
       <body>
         <h2>🎉 Rozszerzenie „Last Tab Switcher” zostało zainstalowane!</h2>
-        <p>✅ Dostępne skróty (można dostosować na stronie <code>chrome://extensions/shortcuts</code>):</p>
+        <p><strong>⚠️ WAŻNE:</strong> Musisz ustawić skróty klawiszowe ręcznie!</p>
+        <p>Przejdź na stronę <code>chrome://extensions/shortcuts</code> (skopiuj i wklej w pasek adresu) i ustaw:</p>
         <ul>
-          <li><strong>Ctrl + E</strong> (Windows) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
-          <li><strong>Ctrl + Shift + E</strong> (Windows) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
+          <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
+          <li><strong>Ctrl + Shift + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
         </ul>
+        <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
         <p>Dziękujemy za korzystanie!</p>
       </body>
       </html>
