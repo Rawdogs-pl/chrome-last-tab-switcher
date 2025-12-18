@@ -27,8 +27,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.action === 'setScrollPosition') {
         // Set scroll position
-        if (message.position && 
-            typeof message.position.x === 'number' && 
+        if (message.position &&
+            typeof message.position.x === 'number' &&
             typeof message.position.y === 'number' &&
             !isNaN(message.position.x) &&
             !isNaN(message.position.y)) {
