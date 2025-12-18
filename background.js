@@ -1,30 +1,43 @@
 // Keys for storing state in storage
 const STORAGE_KEYS = {
     lastTabId: 'lastTabId',
-    currentTabId: 'currentTabId'
+    currentTabId: 'currentTabId',
+    lastTabScrollPosition: 'lastTabScrollPosition'
 };
 
 // Helper function to retrieve state from storage
 async function getTabState() {
     try {
-        const result = await chrome.storage.session.get([STORAGE_KEYS.lastTabId, STORAGE_KEYS.currentTabId]);
+        const result = await chrome.storage.session.get([
+            STORAGE_KEYS.lastTabId,
+            STORAGE_KEYS.currentTabId,
+            STORAGE_KEYS.lastTabScrollPosition
+        ]);
         return {
             lastTabId: result[STORAGE_KEYS.lastTabId] || null,
-            currentTabId: result[STORAGE_KEYS.currentTabId] || null
+            currentTabId: result[STORAGE_KEYS.currentTabId] || null,
+            lastTabScrollPosition: result[STORAGE_KEYS.lastTabScrollPosition] || null
         };
     } catch (error) {
         console.error('Error getting tab state:', error);
-        return { lastTabId: null, currentTabId: null };
+        return { lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
     }
 }
 
 // Helper function to save state to storage
-async function saveTabState(lastTabId, currentTabId) {
+async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = undefined) {
     try {
-        await chrome.storage.session.set({
+        const data = {
             [STORAGE_KEYS.lastTabId]: lastTabId,
             [STORAGE_KEYS.currentTabId]: currentTabId
-        });
+        };
+        
+        // Only update scroll position if explicitly provided
+        if (lastTabScrollPosition !== undefined) {
+            data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
+        }
+        
+        await chrome.storage.session.set(data);
     } catch (error) {
         console.error('Error saving tab state:', error);
     }
@@ -37,6 +50,28 @@ async function isTabValid(tabId) {
         await chrome.tabs.get(tabId);
         return true;
     } catch (error) {
+        return false;
+    }
+}
+
+// Helper function to get scroll position from a tab
+async function getScrollPositionFromTab(tabId) {
+    try {
+        const response = await chrome.tabs.sendMessage(tabId, { action: 'getScrollPosition' });
+        return response;
+    } catch (error) {
+        console.error('Error getting scroll position from tab:', error);
+        return null;
+    }
+}
+
+// Helper function to set scroll position in a tab
+async function setScrollPositionInTab(tabId, position) {
+    try {
+        await chrome.tabs.sendMessage(tabId, { action: 'setScrollPosition', position: position });
+        return true;
+    } catch (error) {
+        console.error('Error setting scroll position in tab:', error);
         return false;
     }
 }
@@ -73,7 +108,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         
         // If we changed tab, save previous as last
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
-            await saveTabState(state.currentTabId, activeInfo.tabId);
+            // Try to get scroll position from the tab we're leaving
+            const scrollPosition = await getScrollPositionFromTab(state.currentTabId);
+            await saveTabState(state.currentTabId, activeInfo.tabId, scrollPosition);
         } else {
             await saveTabState(state.lastTabId, activeInfo.tabId);
         }
@@ -129,6 +166,33 @@ chrome.commands.onCommand.addListener(async (command) => {
         } catch (error) {
             console.error('Error switching to last tab:', error);
         }
+    } else if (command === "sync-scroll-position") {
+        try {
+            const state = await getTabState();
+            
+            if (!state.lastTabScrollPosition) {
+                console.log('No scroll position available from last tab');
+                return;
+            }
+            
+            // Get current active tab
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length === 0) {
+                console.log('No active tab found');
+                return;
+            }
+            
+            // Set scroll position in current tab to match last tab's scroll position
+            const success = await setScrollPositionInTab(tabs[0].id, state.lastTabScrollPosition);
+            if (success) {
+                console.log('Scroll position synced successfully');
+            } else {
+                console.log('Failed to sync scroll position');
+            }
+            
+        } catch (error) {
+            console.error('Error syncing scroll position:', error);
+        }
     }
 });
 
@@ -150,7 +214,11 @@ chrome.runtime.onInstalled.addListener(details => {
       </head>
       <body>
         <h2>🎉 Rozszerzenie „Last Tab Switcher” zostało zainstalowane!</h2>
-        <p>✅ Rekomendowany skrót to: <strong>Ctrl + E</strong> (Windows) lub <strong>⌘ Cmd + E</strong> (Mac) - musisz go ustawić na stronie <code>chrome://extensions/shortcuts</code> (skopiuj ten link i wklej w pasek adresu przeglądarki).</p>
+        <p>✅ Dostępne skróty (można dostosować na stronie <code>chrome://extensions/shortcuts</code>):</p>
+        <ul>
+          <li><strong>Ctrl + E</strong> (Windows) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
+          <li><strong>Ctrl + Shift + E</strong> (Windows) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
+        </ul>
         <p>Dziękujemy za korzystanie!</p>
       </body>
       </html>
