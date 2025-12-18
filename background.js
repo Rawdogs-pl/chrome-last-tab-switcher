@@ -62,6 +62,7 @@ function isValidWebPageUrl(url) {
            !url.startsWith('about:') &&
            !url.startsWith('data:') &&
            !url.startsWith('javascript:') &&
+           !url.startsWith('vbscript:') &&
            !url.startsWith('file://');
 }
 
