@@ -25,7 +25,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     } else if (message.action === 'setScrollPosition') {
         // Set scroll position
-        if (message.position) {
+        if (message.position && 
+            typeof message.position.x === 'number' && 
+            typeof message.position.y === 'number' &&
+            !isNaN(message.position.x) &&
+            !isNaN(message.position.y)) {
             // Wait for document to be ready before scrolling
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
@@ -39,7 +43,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 return true; // Keep message channel open
             }
         } else {
-            sendResponse({ success: false, error: 'No position provided' });
+            sendResponse({ success: false, error: 'Invalid or missing position data' });
             return true; // Keep message channel open
         }
     }

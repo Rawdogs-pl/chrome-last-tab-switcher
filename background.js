@@ -32,8 +32,11 @@ async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = nul
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
         
-        // Only update scroll position if explicitly provided
-        if (lastTabScrollPosition !== null) {
+        // Only update scroll position if explicitly provided and valid
+        if (lastTabScrollPosition !== null && 
+            typeof lastTabScrollPosition === 'object' &&
+            typeof lastTabScrollPosition.x === 'number' &&
+            typeof lastTabScrollPosition.y === 'number') {
             data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
         }
         
