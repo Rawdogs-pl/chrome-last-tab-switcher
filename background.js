@@ -25,7 +25,7 @@ async function getTabState() {
 }
 
 // Helper function to save state to storage
-async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = undefined) {
+async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = null) {
     try {
         const data = {
             [STORAGE_KEYS.lastTabId]: lastTabId,
@@ -33,7 +33,7 @@ async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = und
         };
         
         // Only update scroll position if explicitly provided
-        if (lastTabScrollPosition !== undefined) {
+        if (lastTabScrollPosition !== null) {
             data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
         }
         
@@ -59,7 +59,13 @@ async function getScrollPositionFromTab(tabId) {
     try {
         // Check if tab exists and is a valid web page
         const tab = await chrome.tabs.get(tabId);
-        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+        if (!tab.url || 
+            tab.url.startsWith('chrome://') || 
+            tab.url.startsWith('chrome-extension://') ||
+            tab.url.startsWith('about:') ||
+            tab.url.startsWith('data:') ||
+            tab.url.startsWith('javascript:') ||
+            tab.url.startsWith('file://')) {
             return null;
         }
         
@@ -77,7 +83,13 @@ async function setScrollPositionInTab(tabId, position) {
     try {
         // Check if tab exists and is a valid web page
         const tab = await chrome.tabs.get(tabId);
-        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+        if (!tab.url || 
+            tab.url.startsWith('chrome://') || 
+            tab.url.startsWith('chrome-extension://') ||
+            tab.url.startsWith('about:') ||
+            tab.url.startsWith('data:') ||
+            tab.url.startsWith('javascript:') ||
+            tab.url.startsWith('file://')) {
             return false;
         }
         
