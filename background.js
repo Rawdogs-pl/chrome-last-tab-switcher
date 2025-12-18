@@ -54,18 +54,23 @@ async function isTabValid(tabId) {
     }
 }
 
+// Helper function to check if URL is a valid web page that supports content scripts
+function isValidWebPageUrl(url) {
+    if (!url) return false;
+    return !url.startsWith('chrome://') &&
+           !url.startsWith('chrome-extension://') &&
+           !url.startsWith('about:') &&
+           !url.startsWith('data:') &&
+           !url.startsWith('javascript:') &&
+           !url.startsWith('file://');
+}
+
 // Helper function to get scroll position from a tab
 async function getScrollPositionFromTab(tabId) {
     try {
         // Check if tab exists and is a valid web page
         const tab = await chrome.tabs.get(tabId);
-        if (!tab.url || 
-            tab.url.startsWith('chrome://') || 
-            tab.url.startsWith('chrome-extension://') ||
-            tab.url.startsWith('about:') ||
-            tab.url.startsWith('data:') ||
-            tab.url.startsWith('javascript:') ||
-            tab.url.startsWith('file://')) {
+        if (!isValidWebPageUrl(tab.url)) {
             return null;
         }
         
@@ -83,13 +88,7 @@ async function setScrollPositionInTab(tabId, position) {
     try {
         // Check if tab exists and is a valid web page
         const tab = await chrome.tabs.get(tabId);
-        if (!tab.url || 
-            tab.url.startsWith('chrome://') || 
-            tab.url.startsWith('chrome-extension://') ||
-            tab.url.startsWith('about:') ||
-            tab.url.startsWith('data:') ||
-            tab.url.startsWith('javascript:') ||
-            tab.url.startsWith('file://')) {
+        if (!isValidWebPageUrl(tab.url)) {
             return false;
         }
         

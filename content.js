@@ -21,6 +21,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 y: window.scrollY
             };
             sendResponse(scrollPosition);
+            return true; // Keep message channel open
         }
     } else if (message.action === 'setScrollPosition') {
         // Set scroll position
@@ -35,9 +36,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             } else {
                 window.scrollTo(message.position.x, message.position.y);
                 sendResponse({ success: true });
+                return true; // Keep message channel open
             }
         } else {
             sendResponse({ success: false, error: 'No position provided' });
+            return true; // Keep message channel open
         }
     }
 });
