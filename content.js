@@ -1,5 +1,13 @@
 // Content script to handle scroll position capture and restoration
 
+// Helper function to get current scroll position
+function getScrollPosition() {
+    return {
+        x: window.scrollX,
+        y: window.scrollY
+    };
+}
+
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'getScrollPosition') {
@@ -7,19 +15,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Wait for document to be loaded if necessary
         if (document.readyState === 'loading') {
             const sendScrollPositionOnReady = () => {
-                const scrollPosition = {
-                    x: window.scrollX,
-                    y: window.scrollY
-                };
+                const scrollPosition = getScrollPosition();
                 sendResponse(scrollPosition);
             };
             document.addEventListener('DOMContentLoaded', sendScrollPositionOnReady, { once: true });
             return true; // Required for async response
         } else {
-            const scrollPosition = {
-                x: window.scrollX,
-                y: window.scrollY
-            };
+            const scrollPosition = getScrollPosition();
             sendResponse(scrollPosition);
             return true; // Keep message channel open
         }

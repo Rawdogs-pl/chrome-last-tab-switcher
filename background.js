@@ -31,15 +31,15 @@ async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = nul
             [STORAGE_KEYS.lastTabId]: lastTabId,
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
-        
+
         // Only update scroll position if explicitly provided and valid
-        if (lastTabScrollPosition !== null && 
+        if (lastTabScrollPosition !== null &&
             typeof lastTabScrollPosition === 'object' &&
             typeof lastTabScrollPosition.x === 'number' &&
             typeof lastTabScrollPosition.y === 'number') {
             data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
         }
-        
+
         await chrome.storage.session.set(data);
     } catch (error) {
         console.error('Error saving tab state:', error);
@@ -77,7 +77,7 @@ async function getScrollPositionFromTab(tabId) {
         if (!isValidWebPageUrl(tab.url)) {
             return null;
         }
-        
+
         const response = await chrome.tabs.sendMessage(tabId, { action: 'getScrollPosition' });
         return response;
     } catch (error) {
@@ -95,7 +95,7 @@ async function setScrollPositionInTab(tabId, position) {
         if (!isValidWebPageUrl(tab.url)) {
             return false;
         }
-        
+
         await chrome.tabs.sendMessage(tabId, { action: 'setScrollPosition', position: position });
         return true;
     } catch (error) {
@@ -134,7 +134,7 @@ async function initializeExtension() {
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     try {
         const state = await getTabState();
-        
+
         // If we changed tab, save previous as last
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
             // Try to get scroll position from the tab we're leaving
@@ -152,12 +152,12 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
-        
+
         // If the last remembered tab was removed, clear it
         if (state.lastTabId === tabId) {
             await saveTabState(null, state.currentTabId);
         }
-        
+
         // If current tab was removed, find new active one
         if (state.currentTabId === tabId) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -175,12 +175,12 @@ chrome.commands.onCommand.addListener(async (command) => {
     if (command === "switch-last-tab") {
         try {
             const state = await getTabState();
-            
+
             if (!state.lastTabId) {
                 console.log('No last tab ID available');
                 return;
             }
-            
+
             // Check if last tab still exists
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
@@ -188,29 +188,29 @@ chrome.commands.onCommand.addListener(async (command) => {
                 await saveTabState(null, state.currentTabId);
                 return;
             }
-            
+
             // Switch to last tab
             await chrome.tabs.update(state.lastTabId, { active: true });
-            
+
         } catch (error) {
             console.error('Error switching to last tab:', error);
         }
     } else if (command === "sync-scroll-position") {
         try {
             const state = await getTabState();
-            
+
             if (!state.lastTabScrollPosition) {
                 console.log('No scroll position available from last tab');
                 return;
             }
-            
+
             // Get current active tab
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs.length === 0) {
                 console.log('No active tab found');
                 return;
             }
-            
+
             // Set scroll position in current tab to match last tab's scroll position
             const success = await setScrollPositionInTab(tabs[0].id, state.lastTabScrollPosition);
             if (success) {
@@ -218,7 +218,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             } else {
                 console.log('Failed to sync scroll position');
             }
-            
+
         } catch (error) {
             console.error('Error syncing scroll position:', error);
         }
@@ -259,7 +259,7 @@ chrome.runtime.onInstalled.addListener(details => {
             url: "data:text/html;charset=utf-8," + encodeURIComponent(instructionHtml)
         });
     }
-    
+
     // Initialize the extension after installation or update
     initializeExtension();
 });
