@@ -14,7 +14,4 @@ Wracaj do ostatnio używanej karty jednym skrótem. Wybierz własną kombinację
 3. Włącz tryb dewelopera (switch w prawym górnym rogu strony)
 4. Kliknij „Załaduj rozpakowane” (button w lewym górnym rogu strony)
 5. Wskaż z dysku wypakowany folder niniejszego repozytorium (z punktu nr 1)
-6. **WAŻNE:** Przejdź na stronę `chrome://extensions/shortcuts` i ustaw skróty klawiszowe:
-   - **Ctrl + E** (lub ⌘ Cmd + E na Mac) - przełącz na ostatnio aktywną kartę
-   - **Ctrl + Shift + E** (lub ⌘ Cmd + Shift + E na Mac) - zescrolluj do pozycji z ostatniej karty
-   - Możesz wybrać inne kombinacje klawiszy, jeśli sugerowane są zajęte
+6. **WAŻNE:** Przejdź na stronę `chrome://extensions/shortcuts` i ustaw skróty klawiszowe.
