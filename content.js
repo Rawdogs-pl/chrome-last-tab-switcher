@@ -10,7 +10,11 @@ function getScrollPosition() {
 
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'getScrollPosition') {
+    if (message.action === 'ping') {
+        // Simple ping to check if content script is loaded
+        sendResponse({ success: true });
+        return true;
+    } else if (message.action === 'getScrollPosition') {
         // Get current scroll position
         // Wait for document to be loaded if necessary
         if (document.readyState === 'loading') {

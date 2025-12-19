@@ -69,6 +69,35 @@ function isValidWebPageUrl(url) {
            !url.startsWith('file://');
 }
 
+// Helper function to ensure content script is injected
+async function ensureContentScriptInjected(tabId) {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        if (!isValidWebPageUrl(tab.url)) {
+            return false;
+        }
+        
+        // Try to ping the content script
+        try {
+            await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+            return true; // Content script is already injected
+        } catch (error) {
+            // Content script not responding, try to inject it
+            console.log('Content script not found, attempting injection for tab:', tabId);
+            await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['content.js']
+            });
+            // Wait a bit for the script to initialize
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return true;
+        }
+    } catch (error) {
+        console.error('Failed to ensure content script injection:', error);
+        return false;
+    }
+}
+
 // Helper function to get scroll position from a tab
 async function getScrollPositionFromTab(tabId) {
     try {
@@ -78,12 +107,18 @@ async function getScrollPositionFromTab(tabId) {
             return null;
         }
 
+        // Ensure content script is injected
+        const injected = await ensureContentScriptInjected(tabId);
+        if (!injected) {
+            console.log('Unable to inject content script for tab:', tabId);
+            return null;
+        }
+
         const response = await chrome.tabs.sendMessage(tabId, { action: 'getScrollPosition' });
         return response;
     } catch (error) {
         // Content script might not be injected yet or tab doesn't support it
-        // This is expected behavior for certain pages or during navigation, so we silently return null
-        // Only log if it's not the common "connection" error
+        // This is expected behavior for certain pages or during navigation
         if (!error.message.includes('Could not establish connection') &&
             !error.message.includes('Receiving end does not exist')) {
             console.error('Error getting scroll position from tab:', error);
@@ -101,12 +136,18 @@ async function setScrollPositionInTab(tabId, position) {
             return false;
         }
 
+        // Ensure content script is injected
+        const injected = await ensureContentScriptInjected(tabId);
+        if (!injected) {
+            console.log('Unable to inject content script for tab:', tabId);
+            return false;
+        }
+
         await chrome.tabs.sendMessage(tabId, { action: 'setScrollPosition', position: position });
         return true;
     } catch (error) {
         // Content script might not be injected yet or tab doesn't support it
-        // This is expected behavior for certain pages or during navigation, so we silently return false
-        // Only log if it's not the common "connection" error
+        // This is expected behavior for certain pages or during navigation
         if (!error.message.includes('Could not establish connection') &&
             !error.message.includes('Receiving end does not exist')) {
             console.error('Error setting scroll position in tab:', error);
