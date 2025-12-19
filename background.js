@@ -89,12 +89,12 @@ async function ensureContentScriptInjected(tabId) {
                 files: ['content.js']
             });
             
-            // Verify injection with retries
+            // Verify injection with retries using exponential backoff
             const maxRetries = 3;
-            const retryDelay = 50; // Start with 50ms
+            const baseDelay = 50; // Start with 50ms
             
             for (let i = 0; i < maxRetries; i++) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay * (i + 1)));
+                await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, i)));
                 try {
                     await chrome.tabs.sendMessage(tabId, { action: 'ping' });
                     console.log('Content script successfully injected and verified for tab:', tabId);
@@ -106,7 +106,6 @@ async function ensureContentScriptInjected(tabId) {
                     }
                 }
             }
-            return false;
         }
     } catch (error) {
         console.error('Failed to ensure content script injection:', error);
