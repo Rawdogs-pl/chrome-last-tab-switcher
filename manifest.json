@@ -11,15 +11,15 @@
   "commands": {
     "switch-last-tab": {
       "suggested_key": {
-        "default": "Ctrl+E",
-        "mac": "Command+E"
+        "default": "Ctrl+M",
+        "mac": "Command+M"
       },
       "description": "Przełącz na ostatnio aktywną kartę"
     },
     "sync-scroll-position": {
       "suggested_key": {
-        "default": "Ctrl+Shift+E",
-        "mac": "Command+Shift+E"
+        "default": "Ctrl+M",
+        "mac": "Command+M"
       },
       "description": "Zescrolluj do pozycji z ostatniej karty"
     }
