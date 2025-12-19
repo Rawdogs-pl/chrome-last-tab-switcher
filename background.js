@@ -313,7 +313,7 @@ chrome.runtime.onInstalled.addListener(details => {
         <p>Przejdź na stronę <code>chrome://extensions/shortcuts</code> (skopiuj i wklej w pasek adresu) i ustaw:</p>
         <ul>
           <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
-          <li><strong>Ctrl + Shift + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
+          <li><strong>Ctrl + M</strong> (Windows/Linux) lub <strong>⌘ Cmd + M</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
         </ul>
         <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
         <p>Dziękujemy za korzystanie!</p>
