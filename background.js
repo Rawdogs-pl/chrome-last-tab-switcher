@@ -82,7 +82,12 @@ async function getScrollPositionFromTab(tabId) {
         return response;
     } catch (error) {
         // Content script might not be injected yet or tab doesn't support it
-        console.error('Error getting scroll position from tab:', error);
+        // This is expected behavior for certain pages or during navigation, so we silently return null
+        // Only log if it's not the common "connection" error
+        if (!error.message.includes('Could not establish connection') &&
+            !error.message.includes('Receiving end does not exist')) {
+            console.error('Error getting scroll position from tab:', error);
+        }
         return null;
     }
 }
@@ -100,7 +105,12 @@ async function setScrollPositionInTab(tabId, position) {
         return true;
     } catch (error) {
         // Content script might not be injected yet or tab doesn't support it
-        console.error('Error setting scroll position in tab:', error);
+        // This is expected behavior for certain pages or during navigation, so we silently return false
+        // Only log if it's not the common "connection" error
+        if (!error.message.includes('Could not establish connection') &&
+            !error.message.includes('Receiving end does not exist')) {
+            console.error('Error setting scroll position in tab:', error);
+        }
         return false;
     }
 }
