@@ -28,7 +28,7 @@ async function getTabState() {
 }
 
 // Helper function to save state to storage
-async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabScrollPosition = null) {
+async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabScrollPosition = undefined) {
     try {
         const data = {
             [STORAGE_KEYS.secondToLastTabId]: secondToLastTabId,
@@ -37,15 +37,21 @@ async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabS
         };
 
         if (lastTabScrollPosition !== null &&
+            lastTabScrollPosition !== undefined &&
             typeof lastTabScrollPosition === 'object' &&
             typeof lastTabScrollPosition.x === 'number' &&
             typeof lastTabScrollPosition.y === 'number') {
+            // Valid scroll position provided — include it in the saved state
             data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
-            await chrome.storage.session.set(data);
-        } else {
-            await chrome.storage.session.set(data);
+        }
+
+        await chrome.storage.session.set(data);
+
+        if (lastTabScrollPosition === null) {
+            // Explicitly cleared — remove stale scroll position from storage
             await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
         }
+        // undefined: leave existing scroll position in storage untouched
     } catch (error) {
         console.error('Error saving tab state:', error);
     }
@@ -188,7 +194,7 @@ async function initializeExtension() {
                 // Check if the previous tab still exists
                 const isValid = await isTabValid(state.currentTabId);
                 if (isValid) {
-                    await saveTabState(state.lastTabId, state.currentTabId, tabs[0].id);
+                    await saveTabState(state.lastTabId, state.currentTabId, tabs[0].id, null);
                 } else {
                     await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
                 }
@@ -232,7 +238,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
         // If the last remembered tab was removed, promote second-to-last
         if (state.lastTabId === tabId) {
-            await saveTabState(null, state.secondToLastTabId, state.currentTabId);
+            await saveTabState(null, state.secondToLastTabId, state.currentTabId, null);
             return;
         }
 
@@ -263,7 +269,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
                 console.log('Last tab no longer exists, clearing from storage');
-                await saveTabState(null, state.secondToLastTabId, state.currentTabId);
+                await saveTabState(null, state.secondToLastTabId, state.currentTabId, null);
                 return;
             }
 
