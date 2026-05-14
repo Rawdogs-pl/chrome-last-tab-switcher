@@ -36,15 +36,16 @@ async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabS
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
 
-        // Only update scroll position if explicitly provided and valid
         if (lastTabScrollPosition !== null &&
             typeof lastTabScrollPosition === 'object' &&
             typeof lastTabScrollPosition.x === 'number' &&
             typeof lastTabScrollPosition.y === 'number') {
             data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
+            await chrome.storage.session.set(data);
+        } else {
+            await chrome.storage.session.set(data);
+            await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
         }
-
-        await chrome.storage.session.set(data);
     } catch (error) {
         console.error('Error saving tab state:', error);
     }
@@ -232,7 +233,6 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
         // If the last remembered tab was removed, promote second-to-last
         if (state.lastTabId === tabId) {
             await saveTabState(null, state.secondToLastTabId, state.currentTabId);
-            await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
             return;
         }
 
@@ -264,7 +264,6 @@ chrome.commands.onCommand.addListener(async (command) => {
             if (!isValid) {
                 console.log('Last tab no longer exists, clearing from storage');
                 await saveTabState(null, state.secondToLastTabId, state.currentTabId);
-                await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
                 return;
             }
 
