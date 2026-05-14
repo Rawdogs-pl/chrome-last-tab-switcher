@@ -228,26 +228,31 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
+        let { secondToLastTabId, lastTabId, currentTabId } = state;
+        let clearScrollPosition = false;
 
-        // If the second-to-last remembered tab was removed, clear it
-        if (state.secondToLastTabId === tabId) {
-            await saveTabState(null, state.lastTabId, state.currentTabId);
-            return;
+        // All fields are checked without early returns so that a tabId matching
+        // multiple state slots (e.g. secondToLastTabId === currentTabId after A→B→A
+        // activation history) is handled correctly in a single pass.
+
+        if (secondToLastTabId === tabId) {
+            secondToLastTabId = null;
         }
 
-        // If the last remembered tab was removed, promote second-to-last
-        if (state.lastTabId === tabId) {
-            await saveTabState(null, state.secondToLastTabId, state.currentTabId, null);
-            return;
+        if (lastTabId === tabId) {
+            // Promote second-to-last to last; if second-to-last was also the removed
+            // tab it is already null here, so last also becomes null.
+            lastTabId = secondToLastTabId;
+            secondToLastTabId = null;
+            clearScrollPosition = true;
         }
 
-        // If current tab was removed, find new active one
-        if (state.currentTabId === tabId) {
+        if (currentTabId === tabId) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
-                await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
-            }
+            currentTabId = tabs.length > 0 ? tabs[0].id : null;
         }
+
+        await saveTabState(secondToLastTabId, lastTabId, currentTabId, clearScrollPosition ? null : undefined);
     } catch (error) {
         console.error('Error handling tab removal:', error);
     }
@@ -354,6 +359,7 @@ chrome.runtime.onInstalled.addListener(details => {
         <ul>
           <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
           <li><strong>Alt + Q</strong> (Windows/Linux) lub <strong>⌥ Option + Q</strong> (Mac) - przełącz na przedostatnią aktywną kartę</li>
+          <li><em>Uwaga: Chrome używa nazwy „Alt" dla klawisza ⌥ Option w ustawieniach skrótów na macOS.</em></li>
           <li><strong>Ctrl + M</strong> (Windows/Linux) lub <strong>⌘ Cmd + M</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
         </ul>
         <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
