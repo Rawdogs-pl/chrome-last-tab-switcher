@@ -16,6 +16,13 @@
       },
       "description": "Przełącz na ostatnio aktywną kartę"
     },
+    "switch-second-to-last-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
+      },
+      "description": "Przełącz na przedostatnią aktywną kartę"
+    },
     "sync-scroll-position": {
       "suggested_key": {
         "default": "Ctrl+M",

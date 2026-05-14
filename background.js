@@ -1,5 +1,6 @@
 // Keys for storing state in storage
 const STORAGE_KEYS = {
+    secondToLastTabId: 'secondToLastTabId',
     lastTabId: 'lastTabId',
     currentTabId: 'currentTabId',
     lastTabScrollPosition: 'lastTabScrollPosition'
@@ -9,25 +10,28 @@ const STORAGE_KEYS = {
 async function getTabState() {
     try {
         const result = await chrome.storage.session.get([
+            STORAGE_KEYS.secondToLastTabId,
             STORAGE_KEYS.lastTabId,
             STORAGE_KEYS.currentTabId,
             STORAGE_KEYS.lastTabScrollPosition
         ]);
         return {
+            secondToLastTabId: result[STORAGE_KEYS.secondToLastTabId] || null,
             lastTabId: result[STORAGE_KEYS.lastTabId] || null,
             currentTabId: result[STORAGE_KEYS.currentTabId] || null,
             lastTabScrollPosition: result[STORAGE_KEYS.lastTabScrollPosition] || null
         };
     } catch (error) {
         console.error('Error getting tab state:', error);
-        return { lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
+        return { secondToLastTabId: null, lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
     }
 }
 
 // Helper function to save state to storage
-async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = null) {
+async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabScrollPosition = null) {
     try {
         const data = {
+            [STORAGE_KEYS.secondToLastTabId]: secondToLastTabId,
             [STORAGE_KEYS.lastTabId]: lastTabId,
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
@@ -183,12 +187,12 @@ async function initializeExtension() {
                 // Check if the previous tab still exists
                 const isValid = await isTabValid(state.currentTabId);
                 if (isValid) {
-                    await saveTabState(state.currentTabId, tabs[0].id);
+                    await saveTabState(state.lastTabId, state.currentTabId, tabs[0].id);
                 } else {
-                    await saveTabState(null, tabs[0].id);
+                    await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
                 }
             } else {
-                await saveTabState(state.lastTabId, tabs[0].id);
+                await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
             }
         }
     } catch (error) {
@@ -205,9 +209,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
             // Try to get scroll position from the tab we're leaving
             const scrollPosition = await getScrollPositionFromTab(state.currentTabId);
-            await saveTabState(state.currentTabId, activeInfo.tabId, scrollPosition);
+            await saveTabState(state.lastTabId, state.currentTabId, activeInfo.tabId, scrollPosition);
         } else {
-            await saveTabState(state.lastTabId, activeInfo.tabId);
+            await saveTabState(state.secondToLastTabId, state.lastTabId, activeInfo.tabId);
         }
     } catch (error) {
         console.error('Error handling tab activation:', error);
@@ -219,16 +223,23 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     try {
         const state = await getTabState();
 
-        // If the last remembered tab was removed, clear it
+        // If the second-to-last remembered tab was removed, clear it
+        if (state.secondToLastTabId === tabId) {
+            await saveTabState(null, state.lastTabId, state.currentTabId);
+            return;
+        }
+
+        // If the last remembered tab was removed, promote second-to-last
         if (state.lastTabId === tabId) {
-            await saveTabState(null, state.currentTabId);
+            await saveTabState(null, state.secondToLastTabId, state.currentTabId);
+            return;
         }
 
         // If current tab was removed, find new active one
         if (state.currentTabId === tabId) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs.length > 0) {
-                await saveTabState(state.lastTabId, tabs[0].id);
+                await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
             }
         }
     } catch (error) {
@@ -251,7 +262,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
                 console.log('Last tab no longer exists, clearing from storage');
-                await saveTabState(null, state.currentTabId);
+                await saveTabState(null, state.secondToLastTabId, state.currentTabId);
                 return;
             }
 
@@ -260,6 +271,29 @@ chrome.commands.onCommand.addListener(async (command) => {
 
         } catch (error) {
             console.error('Error switching to last tab:', error);
+        }
+    } else if (command === "switch-second-to-last-tab") {
+        try {
+            const state = await getTabState();
+
+            if (!state.secondToLastTabId) {
+                console.log('No second-to-last tab ID available');
+                return;
+            }
+
+            // Check if second-to-last tab still exists
+            const isValid = await isTabValid(state.secondToLastTabId);
+            if (!isValid) {
+                console.log('Second-to-last tab no longer exists, clearing from storage');
+                await saveTabState(null, state.lastTabId, state.currentTabId);
+                return;
+            }
+
+            // Switch to second-to-last tab
+            await chrome.tabs.update(state.secondToLastTabId, { active: true });
+
+        } catch (error) {
+            console.error('Error switching to second-to-last tab:', error);
         }
     } else if (command === "sync-scroll-position") {
         try {
@@ -313,6 +347,7 @@ chrome.runtime.onInstalled.addListener(details => {
         <p>Przejdź na stronę <code>chrome://extensions/shortcuts</code> (skopiuj i wklej w pasek adresu) i ustaw:</p>
         <ul>
           <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
+          <li><strong>Ctrl + Shift + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + Shift + E</strong> (Mac) - przełącz na przedostatnią aktywną kartę</li>
           <li><strong>Ctrl + M</strong> (Windows/Linux) lub <strong>⌘ Cmd + M</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
         </ul>
         <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
