@@ -36,22 +36,21 @@ async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabS
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
 
-        if (lastTabScrollPosition !== null &&
-            lastTabScrollPosition !== undefined &&
-            typeof lastTabScrollPosition === 'object' &&
-            typeof lastTabScrollPosition.x === 'number' &&
-            typeof lastTabScrollPosition.y === 'number') {
-            // Valid scroll position provided — include it in the saved state
-            data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
-        }
-
-        await chrome.storage.session.set(data);
-
-        if (lastTabScrollPosition === null) {
-            // Explicitly cleared — remove stale scroll position from storage
-            await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
+        if (lastTabScrollPosition !== undefined) {
+            // null clears the stored scroll position; a valid {x,y} object saves it.
+            // Both cases are written atomically in the same set() call to avoid races.
+            const isValidScrollPosition = lastTabScrollPosition !== null &&
+                typeof lastTabScrollPosition === 'object' &&
+                typeof lastTabScrollPosition.x === 'number' &&
+                typeof lastTabScrollPosition.y === 'number';
+            if (!isValidScrollPosition && lastTabScrollPosition !== null) {
+                console.warn('saveTabState: invalid lastTabScrollPosition value, clearing:', lastTabScrollPosition);
+            }
+            data[STORAGE_KEYS.lastTabScrollPosition] = isValidScrollPosition ? lastTabScrollPosition : null;
         }
         // undefined: leave existing scroll position in storage untouched
+
+        await chrome.storage.session.set(data);
     } catch (error) {
         console.error('Error saving tab state:', error);
     }
