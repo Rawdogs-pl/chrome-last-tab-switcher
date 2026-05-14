@@ -5,6 +5,7 @@ Wracaj do ostatnio używanej karty jednym skrótem. Wybierz własną kombinację
 ## Funkcje
 
 - **Przełączanie kart** (Ctrl + E): Szybkie przełączanie na ostatnio używaną kartę
+- **Przełączanie na przedostatnią kartę** (Alt + Q): Szybkie przełączanie na przedostatnią używaną kartę
 - **Synchronizacja pozycji scrolla** (Ctrl + M): Przewija bieżącą stronę do tej samej pozycji scrolla, którą miałeś na ostatniej karcie
 
 ## Instalacja

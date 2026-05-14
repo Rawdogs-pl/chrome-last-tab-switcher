@@ -272,7 +272,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             // Check if last tab still exists
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
-                console.log('Last tab no longer exists, clearing from storage');
+                console.log('Last tab no longer exists, promoting second-to-last tab and clearing scroll position');
                 await saveTabState(null, state.secondToLastTabId, state.currentTabId, null);
                 return;
             }
