@@ -232,6 +232,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
         // If the last remembered tab was removed, promote second-to-last
         if (state.lastTabId === tabId) {
             await saveTabState(null, state.secondToLastTabId, state.currentTabId);
+            await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
             return;
         }
 
@@ -263,6 +264,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             if (!isValid) {
                 console.log('Last tab no longer exists, clearing from storage');
                 await saveTabState(null, state.secondToLastTabId, state.currentTabId);
+                await chrome.storage.session.remove(STORAGE_KEYS.lastTabScrollPosition);
                 return;
             }
 
