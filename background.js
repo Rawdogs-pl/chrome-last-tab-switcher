@@ -227,10 +227,6 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 // Handle tab removal
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     try {
-        if (removeInfo.isWindowClosing) {
-            return;
-        }
-
         const state = await getTabState();
         let { secondToLastTabId, lastTabId, currentTabId } = state;
         let clearScrollPosition = false;
@@ -252,8 +248,14 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
         }
 
         if (currentTabId === tabId) {
-            const tabs = await chrome.tabs.query({ active: true, windowId: removeInfo.windowId });
-            currentTabId = tabs.length > 0 ? tabs[0].id : null;
+            // When the whole window is closing there is no active tab to query in it,
+            // so we just clear currentTabId instead of running chrome.tabs.query.
+            if (removeInfo.isWindowClosing) {
+                currentTabId = null;
+            } else {
+                const tabs = await chrome.tabs.query({ active: true, windowId: removeInfo.windowId });
+                currentTabId = tabs.length > 0 ? tabs[0].id : null;
+            }
         }
 
         await saveTabState(secondToLastTabId, lastTabId, currentTabId, clearScrollPosition ? null : undefined);
