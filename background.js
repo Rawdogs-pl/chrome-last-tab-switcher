@@ -215,7 +215,20 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
             // Try to get scroll position from the tab we're leaving
             const scrollPosition = await getScrollPositionFromTab(state.currentTabId);
-            await saveTabState(state.lastTabId, state.currentTabId, activeInfo.tabId, scrollPosition);
+            const newLastTabId = state.currentTabId;
+            const newCurrentTabId = activeInfo.tabId;
+            // When switching back to lastTabId (e.g. Cmd+E toggle), preserve the existing
+            // secondToLastTabId — using state.lastTabId here would make secondToLastTabId
+            // equal to the tab we're navigating TO, breaking Alt+Q distinctness.
+            const candidateSecondToLast = activeInfo.tabId === state.lastTabId
+                ? state.secondToLastTabId
+                : state.lastTabId;
+            // Guarantee distinctness: secondToLastTabId must differ from both last and current.
+            const newSecondToLastTabId = (
+                candidateSecondToLast === newLastTabId ||
+                candidateSecondToLast === newCurrentTabId
+            ) ? null : candidateSecondToLast;
+            await saveTabState(newSecondToLastTabId, newLastTabId, newCurrentTabId, scrollPosition);
         } else {
             await saveTabState(state.secondToLastTabId, state.lastTabId, activeInfo.tabId);
         }
@@ -295,6 +308,13 @@ chrome.commands.onCommand.addListener(async (command) => {
 
             if (!state.secondToLastTabId) {
                 console.log('No second-to-last tab ID available');
+                return;
+            }
+
+            // Guard: secondToLastTabId must be distinct from the current tab.
+            if (state.secondToLastTabId === state.currentTabId) {
+                console.log('Second-to-last tab is the same as current tab, clearing from storage');
+                await saveTabState(null, state.lastTabId, state.currentTabId);
                 return;
             }
 
