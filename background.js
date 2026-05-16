@@ -1,5 +1,6 @@
 // Keys for storing state in storage
 const STORAGE_KEYS = {
+    secondToLastTabId: 'secondToLastTabId',
     lastTabId: 'lastTabId',
     currentTabId: 'currentTabId',
     lastTabScrollPosition: 'lastTabScrollPosition'
@@ -9,36 +10,45 @@ const STORAGE_KEYS = {
 async function getTabState() {
     try {
         const result = await chrome.storage.session.get([
+            STORAGE_KEYS.secondToLastTabId,
             STORAGE_KEYS.lastTabId,
             STORAGE_KEYS.currentTabId,
             STORAGE_KEYS.lastTabScrollPosition
         ]);
         return {
+            secondToLastTabId: result[STORAGE_KEYS.secondToLastTabId] || null,
             lastTabId: result[STORAGE_KEYS.lastTabId] || null,
             currentTabId: result[STORAGE_KEYS.currentTabId] || null,
             lastTabScrollPosition: result[STORAGE_KEYS.lastTabScrollPosition] || null
         };
     } catch (error) {
         console.error('Error getting tab state:', error);
-        return { lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
+        return { secondToLastTabId: null, lastTabId: null, currentTabId: null, lastTabScrollPosition: null };
     }
 }
 
 // Helper function to save state to storage
-async function saveTabState(lastTabId, currentTabId, lastTabScrollPosition = null) {
+async function saveTabState(secondToLastTabId, lastTabId, currentTabId, lastTabScrollPosition = undefined) {
     try {
         const data = {
+            [STORAGE_KEYS.secondToLastTabId]: secondToLastTabId,
             [STORAGE_KEYS.lastTabId]: lastTabId,
             [STORAGE_KEYS.currentTabId]: currentTabId
         };
 
-        // Only update scroll position if explicitly provided and valid
-        if (lastTabScrollPosition !== null &&
-            typeof lastTabScrollPosition === 'object' &&
-            typeof lastTabScrollPosition.x === 'number' &&
-            typeof lastTabScrollPosition.y === 'number') {
-            data[STORAGE_KEYS.lastTabScrollPosition] = lastTabScrollPosition;
+        if (lastTabScrollPosition !== undefined) {
+            // null clears the stored scroll position; a valid {x,y} object saves it.
+            // Both cases are written atomically in the same set() call to avoid races.
+            const isValidScrollPosition = lastTabScrollPosition !== null &&
+                typeof lastTabScrollPosition === 'object' &&
+                typeof lastTabScrollPosition.x === 'number' &&
+                typeof lastTabScrollPosition.y === 'number';
+            if (!isValidScrollPosition && lastTabScrollPosition !== null) {
+                console.warn('saveTabState: invalid lastTabScrollPosition value, clearing:', lastTabScrollPosition);
+            }
+            data[STORAGE_KEYS.lastTabScrollPosition] = isValidScrollPosition ? lastTabScrollPosition : null;
         }
+        // undefined: leave existing scroll position in storage untouched
 
         await chrome.storage.session.set(data);
     } catch (error) {
@@ -183,12 +193,12 @@ async function initializeExtension() {
                 // Check if the previous tab still exists
                 const isValid = await isTabValid(state.currentTabId);
                 if (isValid) {
-                    await saveTabState(state.currentTabId, tabs[0].id);
+                    await saveTabState(state.lastTabId, state.currentTabId, tabs[0].id, null);
                 } else {
-                    await saveTabState(null, tabs[0].id);
+                    await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
                 }
             } else {
-                await saveTabState(state.lastTabId, tabs[0].id);
+                await saveTabState(state.secondToLastTabId, state.lastTabId, tabs[0].id);
             }
         }
     } catch (error) {
@@ -205,9 +215,22 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
         if (state.currentTabId && activeInfo.tabId !== state.currentTabId) {
             // Try to get scroll position from the tab we're leaving
             const scrollPosition = await getScrollPositionFromTab(state.currentTabId);
-            await saveTabState(state.currentTabId, activeInfo.tabId, scrollPosition);
+            const newLastTabId = state.currentTabId;
+            const newCurrentTabId = activeInfo.tabId;
+            // When switching back to lastTabId (e.g. Cmd+E toggle), preserve the existing
+            // secondToLastTabId — using state.lastTabId here would make secondToLastTabId
+            // equal to the tab we're navigating TO, breaking Alt+Q distinctness.
+            const candidateSecondToLast = activeInfo.tabId === state.lastTabId
+                ? state.secondToLastTabId
+                : state.lastTabId;
+            // Guarantee distinctness: secondToLastTabId must differ from both last and current.
+            const newSecondToLastTabId = (
+                candidateSecondToLast === newLastTabId ||
+                candidateSecondToLast === newCurrentTabId
+            ) ? null : candidateSecondToLast;
+            await saveTabState(newSecondToLastTabId, newLastTabId, newCurrentTabId, scrollPosition);
         } else {
-            await saveTabState(state.lastTabId, activeInfo.tabId);
+            await saveTabState(state.secondToLastTabId, state.lastTabId, activeInfo.tabId);
         }
     } catch (error) {
         console.error('Error handling tab activation:', error);
@@ -215,22 +238,40 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 });
 
 // Handle tab removal
-chrome.tabs.onRemoved.addListener(async (tabId) => {
+chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     try {
         const state = await getTabState();
+        let { secondToLastTabId, lastTabId, currentTabId } = state;
+        let clearScrollPosition = false;
 
-        // If the last remembered tab was removed, clear it
-        if (state.lastTabId === tabId) {
-            await saveTabState(null, state.currentTabId);
+        // All fields are checked without early returns so that a tabId matching
+        // multiple state slots (e.g. secondToLastTabId === currentTabId after A→B→A
+        // activation history) is handled correctly in a single pass.
+
+        if (secondToLastTabId === tabId) {
+            secondToLastTabId = null;
         }
 
-        // If current tab was removed, find new active one
-        if (state.currentTabId === tabId) {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
-                await saveTabState(state.lastTabId, tabs[0].id);
+        if (lastTabId === tabId) {
+            // Promote second-to-last to last; if second-to-last was also the removed
+            // tab it is already null here, so last also becomes null.
+            lastTabId = secondToLastTabId;
+            secondToLastTabId = null;
+            clearScrollPosition = true;
+        }
+
+        if (currentTabId === tabId) {
+            // When the whole window is closing there is no active tab to query in it,
+            // so we just clear currentTabId instead of running chrome.tabs.query.
+            if (removeInfo.isWindowClosing) {
+                currentTabId = null;
+            } else {
+                const tabs = await chrome.tabs.query({ active: true, windowId: removeInfo.windowId });
+                currentTabId = tabs.length > 0 ? tabs[0].id : null;
             }
         }
+
+        await saveTabState(secondToLastTabId, lastTabId, currentTabId, clearScrollPosition ? null : undefined);
     } catch (error) {
         console.error('Error handling tab removal:', error);
     }
@@ -250,8 +291,8 @@ chrome.commands.onCommand.addListener(async (command) => {
             // Check if last tab still exists
             const isValid = await isTabValid(state.lastTabId);
             if (!isValid) {
-                console.log('Last tab no longer exists, clearing from storage');
-                await saveTabState(null, state.currentTabId);
+                console.log('Last tab no longer exists, promoting second-to-last tab and clearing scroll position');
+                await saveTabState(null, state.secondToLastTabId, state.currentTabId, null);
                 return;
             }
 
@@ -260,6 +301,36 @@ chrome.commands.onCommand.addListener(async (command) => {
 
         } catch (error) {
             console.error('Error switching to last tab:', error);
+        }
+    } else if (command === "switch-second-to-last-tab") {
+        try {
+            const state = await getTabState();
+
+            if (!state.secondToLastTabId) {
+                console.log('No second-to-last tab ID available');
+                return;
+            }
+
+            // Guard: secondToLastTabId must be distinct from the current tab.
+            if (state.secondToLastTabId === state.currentTabId) {
+                console.log('Second-to-last tab is the same as current tab, clearing from storage');
+                await saveTabState(null, state.lastTabId, state.currentTabId);
+                return;
+            }
+
+            // Check if second-to-last tab still exists
+            const isValid = await isTabValid(state.secondToLastTabId);
+            if (!isValid) {
+                console.log('Second-to-last tab no longer exists, clearing from storage');
+                await saveTabState(null, state.lastTabId, state.currentTabId);
+                return;
+            }
+
+            // Switch to second-to-last tab
+            await chrome.tabs.update(state.secondToLastTabId, { active: true });
+
+        } catch (error) {
+            console.error('Error switching to second-to-last tab:', error);
         }
     } else if (command === "sync-scroll-position") {
         try {
@@ -313,6 +384,7 @@ chrome.runtime.onInstalled.addListener(details => {
         <p>Przejdź na stronę <code>chrome://extensions/shortcuts</code> (skopiuj i wklej w pasek adresu) i ustaw:</p>
         <ul>
           <li><strong>Ctrl + E</strong> (Windows/Linux) lub <strong>⌘ Cmd + E</strong> (Mac) - przełącz na ostatnio aktywną kartę</li>
+          <li><strong>Alt + Q</strong> (Windows/Linux) lub <strong>⌥ Option + Q</strong> (Mac) - przełącz na przedostatnią aktywną kartę</li>
           <li><strong>Ctrl + M</strong> (Windows/Linux) lub <strong>⌘ Cmd + M</strong> (Mac) - zescrolluj do pozycji z ostatniej karty</li>
         </ul>
         <p>💡 Możesz wybrać inne kombinacje klawiszy, jeśli te są już zajęte.</p>
